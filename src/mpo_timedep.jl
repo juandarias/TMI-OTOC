@@ -197,6 +197,62 @@ function update_Wt!(Wt::MPS, Udt::MPO)
     Wt.oc = N;
 end
 
+
+function svd_update_Wt!(Wt::MPS, Udt::MPO; ϵmax::Float64=0.0, Dmax::Int64 = 2^50)
+    N = Wt.L;
+    d = 4;
+    local Vi, Si
+    local Daux
+    local ϵcomp = 0.0;
+
+    function Dcutoff(s::Vector{Float64}, Dmax::Int, ϵ::Float64)
+        D = length(s);
+        sum_disc = 0.0;
+        n = 0;
+        if ϵ != 0.0
+            while sum_disc < ϵ && n < D
+                sum_disc += s[end - n]^2
+                n += 1;
+            end
+            n += -1; # to cancel the last step
+        end
+        Dkeep = D - n;
+        return min(Dkeep, Dmax)
+    end
+
+    for i ∈ 1:N
+        # Reshape into rank-4 tensor
+        Wi = permutedims(reshape(Wt.Ai[i], (size(Wt.Ai[i], 1), 2, 2, size(Wt.Ai[i], 3))), (2, 1, 3, 4));
+        # Contract with U and U†
+        @tensor UWU[u, r1, r2, r3, d, l1, l2, l3] := conj(Udt.Wi[i])[u, r1, α, l1] * Wi[α, r2, β, l2] * Udt.Wi[i][β, r3, d, l3];
+        # Group physical indices
+        UWU = permutedims(UWU, (2, 3, 4, 1, 5, 6, 7, 8));
+
+        # QR factorization
+        if i != 1
+            Atilde = diagm(Si[1:Daux]) * Vi[:,1:Daux]' * reshape(UWU, (prod(size(UWU)[1:3]), :))
+            Atilde = reshape(Atilde, (d * Daux, :));
+        elseif i == 1
+            Atilde = reshape(UWU, (prod(size(UWU)[1:5]), :));
+        end
+
+        if i != N
+            #Qi, Ri = qr(Atilde);
+            Ui, Si, Vi = svd(Atilde);
+            Daux = Dcutoff(Si, Dmax, ϵmax);
+            if Daux < length(Si)
+                ϵcomp += sum(Si[Daux+1:end].^2); # sum of discarded values
+            end
+            Si = Si/sqrt(sum(Si[1:Daux].^2)); # Normalization
+            update_tensor!(Wt, reshape(Ui[:, 1:Daux], :, d, Daux), i);
+        elseif i == N
+            update_tensor!(Wt, reshape(Atilde, (:, d, size(Atilde, 2))), N);
+        end
+    end
+    Wt.canonical = Left();
+    Wt.oc = N;
+    return ϵcomp
+end
 #==========================================================================================#
 ########## OLD: keep for debugging
 

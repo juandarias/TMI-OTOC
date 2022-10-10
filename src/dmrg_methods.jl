@@ -32,6 +32,7 @@ export calc_expval
 export calc_Ut
 export calc_Wt
 export update_Wt!
+export svd_update_Wt!
 
 #export conj
 export sweep_qr!, sweep_svd!
