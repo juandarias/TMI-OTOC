@@ -310,3 +310,55 @@ plot!(collect(1:1000) * 0.005, XX_svd_dt_0_005[:, 5], name = "ϵ=1e-9 dt=0.005",
 plot!(collect(1:100) * 0.05, XX_svd_dt_0_05[:, 5], name = "ϵ=1e-9 dt=0.05", lw = 2, ls = lt[2])
 xlabel!("tJ")
 ylabel!("⟨X5X6⟩")
+
+
+####################
+# Operator density #
+####################
+
+lisa_dir = "/mnt/lisa/TMI/WII/results/"
+filename = "rho_alpha=0.4_N=16_t=5.0_dt=0.0025_tol=1.0e-7_Dmax=4096_r_id6.h5"
+
+data = h5open(lisa_dir*filename)
+rho_t = [];
+for s in 2:381
+    push!(rho_t, read(data["rho_l/step_$s"]))
+end
+
+rho_n = zeros(16, length(rho_t));
+for s in axes(rho_t,1), n ∈ 1:16
+    rho_n[n, s] = rho_t[s][n]
+end
+
+sum_rho = zeros(length(rho_t))
+for s in axes(rho_t,1)
+    sum_rho[s] = 1 - sum(rho_t[s])
+end
+
+scatter(sum_rho)
+
+
+plot(t_steps, rho_n[1,:], label = L"\ell = 1")
+
+for n ∈ 2:16
+    display(plot!(t_steps, rho_n[n,:], label = L"\ell = %$(n)"))
+end
+
+op_size_16 = []
+for s in 2:381
+    rho_s = read(data["rho_l/step_$(s)"]);
+    push!(op_size_16, op_size_v(rho_s));
+end
+
+
+
+ed_out_16 = h5open(datadir("exact/op_density/op_dens_mfi_nk_n16_a0.4.hdf5"))
+t_ed_16 = read(ed_out_16["time"])
+rho_16_ed = read(ed_out_16["op_dens_Y"]);
+op_size_16_ed = op_size(rho_16_ed);
+
+
+
+t_steps = collect(2:381)*0.0025
+op_size_16_fig = plot(t_steps, op_size_16, label = "dt=0.001, ϵ = 1e-7", ls = lt[1]);
+scatter!(t_ed_16[1:20], abs.(op_size_16_ed)[1:20], label = "ED", markershape = :cross)

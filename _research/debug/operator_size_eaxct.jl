@@ -17,7 +17,7 @@ op_size_norm(rho_t, N) = op_size(rho_t)/size_Haar(N)
 ed_out_10 = h5open(datadir("exact/op_density/dat1.1/op_dens_mfi_n10_a1.1.hdf5"))
 ed_out_12 = h5open(datadir("exact/op_density/dat1.1/op_dens_mfi_n12_a1.1.hdf5"))
 ed_out_14 = h5open(datadir("exact/op_density/dat1.1/op_dens_mfi_n14_a1.1.hdf5"))
-ed_out_16 = h5open(datadir("exact/op_density/dat1.1/op_dens_mfi_n16_a1.1.hdf5"))
+ed_out_16 = h5open(datadir("exact/op_density/dat0.4/op_dens_mfi_n16_a0.4.hdf5"))
 
 t_ed_10 = read(ed_out_10["time"])
 t_ed_12 = read(ed_out_12["time"])
@@ -141,16 +141,31 @@ t_max = 2.8;
 s_max = Int(t_max/dt);
 op_size_12 = []
 norm_rho_12 = []
+rho_12 = []
 
-for s in 2:Int(t_max/dt)
+for s in 2:s_max
     rho_s = read(res_12["rho_l/step_$(s)"]);
     push!(op_size_12, op_size_v(rho_s));
     push!(norm_rho_12, sum(rho_s));
+    push!(rho_12, rho_s);
 end
 
 
+rho_n = zeros(12, length(rho_12));
+for s in axes(rho_12,1), n ∈ 1:12
+    rho_n[n, s] = rho_t[s][n]
+end
 
-op_size_12_fig = plot(collect(2:s_max) * 0.005, op_size_12, label = "dt=0.005, ϵ = 1e-8", ls = lt[1])
+
+t_steps = collect(2:s_max)*0.005
+plot(t_steps, rho_n[1,:], label = L"\ell = 1", yscale = :log10)
+
+for n ∈ 2:2:12
+    display(plot!(t_steps, rho_n[n,:], label = L"\ell = %$(n)", yscale = :log10))
+end
+
+
+op_size_12_fig = plot(t_steps, op_size_12, label = "dt=0.005, ϵ = 1e-8", ls = lt[1])
 scatter!(t_ed_12[1:15], abs.(op_size_12_ed)[1:15], label = "ED", markershape = :cross);
 title!("N=12, α = 1.1");
 xlabel!("tJ");
