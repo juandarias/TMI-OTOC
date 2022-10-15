@@ -45,28 +45,6 @@ function operator_density(U_t::MPO, O::Matrix{T}, loc_O::Int64, Λ::Int64; norma
 end
 
 
-function reduced_density_matrix(psi::MPS, loc_start::Int, loc_end::Int)
-    sweep_qr!(psi);
-    sweep_qr!(psi, direction="right", final_site=loc_start);
-
-
-    n = 1;
-    for i ∈ loc_start:loc_end - 1
-        if i == loc_start
-            @tensor rho_i[rb, rk, pb, pk] := conj(psi.Ai[i])[α, pb, rb] * psi.Ai[i][α, pk, rk];
-        else
-            @tensor rho_i[rb, rk, pb, pbi, pk, pki] := conj(psi.Ai[i])[α, pbi, rb] * rho_iAi[α, rk, pb, pk, pki];
-            rho_i = reshape(rho_i, (:, :, 2^n, 2^n));
-        end
-        @tensor rho_iAi[rb, rk, pb, pk, pki] := rho_i[rb, α, pb, pk] * psi.Ai[i+1][α, pki, rk]
-        n += 1;
-    end
-    @tensor rho_i[pb, pbi, pk, pki] := conj(psi.Ai[loc_end])[α, pbi, β] * rho_iAi[α, β, pb, pk, pki];
-    rho_i = reshape(rho_i, (2^n, 2^n));
-
-    return rho_i
-end
-
 """
     function operator_density(W_t::MPO; normalized = true)
 
